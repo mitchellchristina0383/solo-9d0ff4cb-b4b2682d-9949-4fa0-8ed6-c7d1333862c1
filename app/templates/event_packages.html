@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}事件 #{{ ev.event_no }} 诊断包 - OOM 归属核对{% endblock %}
+{% block content %}
+<h2>事件 #{{ ev.event_no }} 的现场诊断包</h2>
+
+<div class="box">
+  <table>
+    <tr><th>事件号</th><td>{{ ev.event_no }}</td></tr>
+    <tr><th>启动 ID</th><td><code>{{ ev.boot_id }}</code></td></tr>
+    <tr><th>被杀 PID</th><td>{{ ev.pid }}</td></tr>
+    <tr><th>所在 cgroup</th><td><code>{{ ev.cgroup }}</code></td></tr>
+    <tr><th>时刻 (ms)</th><td>{{ ev.time_ms }}</td></tr>
+    <tr><th>触发范围</th><td>{{ '触发组' if ev.scope == 'memcg' else '整机' }} ({{ ev.scope }})</td></tr>
+    <tr><th>归属结论</th>
+      <td>{% if ev.status == 'unique' %}运行号 <b>{{ ev.attr_run_no }}</b>
+          {% else %}<span class="tag tag-warn">待核</span>（候选 {{ ev.match_count }} 个）{% endif %}</td></tr>
+    <tr><th>确认状态</th>
+      <td>{% if conf %}<span class="tag tag-ok">已确认派查</span>
+          <span class="muted">{{ conf.confirmed_at }}（挂载中的诊断包受留存保护）</span>
+          {% else %}<span class="muted">未确认</span>{% endif %}</td></tr>
+  </table>
+</div>
+
+<div class="box">
+  <h3 style="margin-top:0">当前附件</h3>
+  {% if att %}
+  <table>
+    <tr><th>文件名</th><td>{{ att.filename }}</td></tr>
+    <tr><th>大小</th><td>{{ att.size_bytes|hsize }}（{{ att.size_bytes }} 字节）</td></tr>
+    <tr><th>内容摘要 (sha256)</th><td><code>{{ att.digest }}</code></td></tr>
+    <tr><th>首次入库</th><td>{{ att.ingested_at }}</td></tr>
+    <tr><th>挂载于本事件</th><td>{{ att.mounted_at }}</td></tr>
+    <tr><th>共享挂载</th>
+      <td>{% if mounts|length > 1 %}本包同时挂在事件
+          {% for m in mounts %}{% if m != ev.event_no %}<a href="{{ url_for('main.event_packages', event_no=m) }}">#{{ m }}</a>{% if not loop.last %}、{% endif %}{% endif %}{% endfor %}
+          下，全库只存一份字节。{% else %}仅挂在本事件下。{% endif %}</td></tr>
+  </table>
+  <p>
+    <a href="{{ url_for('main.download_package', event_no=ev.event_no) }}">
+      <button type="button">下载诊断包</button></a>
+    <span class="muted">重新上传同事件会替换当前附件；相同内容只存一份。</span>
+  </p>
+  {% else %}
+  <p class="muted">本事件尚未挂载诊断包。</p>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data"
+        action="{{ url_for('main.upload_package', event_no=ev.event_no) }}">
+    <input type="file" name="package" required>
+    <button type="submit">上传诊断包</button>
+  </form>
+</div>
+
+<div class="box">
+  <h3 style="margin-top:0">诊断包留存</h3>
+  <p>已留存 <b>{{ used_h }}</b> / 上限 <b>{{ quota_h }}</b>
+     （{{ blob_count }} 个内容包，按内容去重计字节）。</p>
+  <div style="background:#eef1f5;border-radius:4px;height:14px;width:100%;overflow:hidden">
+    <div style="background:#4a7db8;height:14px;width:{{ [ (used / quota * 100)|round(1), 100]|min }}%"></div>
+  </div>
+  <p class="muted">
+    新包放不下时，按首次入库顺序清退未受保护的包并移除其全部挂载；
+    已确认派查事件挂载中的包不会被清退。腾不够空间将整单拒收，原附件照常下载。
+    上限由环境变量 OOM_BLOB_QUOTA 配置（如 100M、2g，默认 100 MiB）。
+  </p>
+</div>
+
+<p><a href="{{ url_for('main.index') }}">返回事件核对</a>
+   | <a href="{{ url_for('main.edit_event', event_no=ev.event_no) }}">更正事件</a></p>
+{% endblock %}

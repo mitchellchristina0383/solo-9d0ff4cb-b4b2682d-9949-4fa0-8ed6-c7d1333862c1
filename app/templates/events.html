@@ -19,7 +19,8 @@
     <td><code>{{ e.cgroup }}</code></td>
     <td>{{ e.time_ms }}</td>
     <td>{{ '触发组' if e.scope == 'memcg' else '整机' }} ({{ e.scope }})</td>
-    <td><a href="{{ url_for('main.edit_event', event_no=e.event_no) }}">更正</a></td>
+    <td><a href="{{ url_for('main.edit_event', event_no=e.event_no) }}">更正</a>
+        <a href="{{ url_for('main.event_packages', event_no=e.event_no) }}">诊断包</a></td>
   </tr>
   {% endfor %}
 </table>

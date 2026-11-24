@@ -50,6 +50,26 @@ CREATE TABLE IF NOT EXISTS confirmations (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_conf_active
     ON confirmations(event_no) WHERE state = 'active';
 CREATE INDEX IF NOT EXISTS idx_conf_event ON confirmations(event_no, state);
+
+-- 现场诊断包：内容寻址，同一 sha256 只存一份字节（跨事件共用不重复计字节）。
+CREATE TABLE IF NOT EXISTS blobs (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,  -- 自增顺序即首次入库顺序
+    digest       TEXT NOT NULL UNIQUE,               -- sha256 十六进制摘要
+    size_bytes   INTEGER NOT NULL CHECK (size_bytes > 0),
+    filename     TEXT NOT NULL,
+    content_type TEXT,
+    data         BLOB NOT NULL,
+    ingested_at  TEXT NOT NULL
+);
+
+-- 事件挂载：每个事件至多一个附件（event_no 主键），同一个包可挂多个事件。
+-- 删除 blob 时级联移除其全部挂载；删除事件时级联移除其挂载。
+CREATE TABLE IF NOT EXISTS event_attachments (
+    event_no   INTEGER PRIMARY KEY REFERENCES events(event_no) ON DELETE CASCADE,
+    blob_id    INTEGER NOT NULL REFERENCES blobs(id) ON DELETE CASCADE,
+    mounted_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ea_blob ON event_attachments(blob_id);
 """
 
 

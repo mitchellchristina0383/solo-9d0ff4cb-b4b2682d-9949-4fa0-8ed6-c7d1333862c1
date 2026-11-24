@@ -6,6 +6,10 @@ services:
       - "8000:8000"
     environment:
       OOM_DB: /data/oom.db
+      # 现场诊断包留存上限（字节），支持 100M / 2g / 纯字节数，默认 100 MiB。
+      OOM_BLOB_QUOTA: ${OOM_BLOB_QUOTA:-100M}
+      # 接收中的临时分片目录（入库前中断只留临时文件，重启自动清理）。
+      OOM_BLOB_SPOOL: /data/blob-spool
       SECRET_KEY: ${SECRET_KEY:-oom-duty-dev-key}
     volumes:
       - oom-data:/data
